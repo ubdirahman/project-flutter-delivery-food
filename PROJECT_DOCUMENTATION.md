@@ -1,6 +1,5 @@
 # 📄 Project Manual: Somali Flavors Delivery App
 
-**Course Code**: CA223 / CA224  
 **Project Objective**: A high-fidelity food delivery application built with Flutter and Node.js.
 
 ---
