@@ -25,12 +25,22 @@ class StaffOrderDetailsScreen extends StatelessWidget {
             _buildSectionTitle('Customer Information'),
             ListTile(
               leading: const Icon(Icons.person),
-              title: Text(order['userId']['username']),
+              title: Text(
+                order['userId'] != null
+                    ? order['userId']['username']
+                    : 'Unknown User',
+              ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(order['userId']['email']),
-                  Text('Phone: ${order['userId']['phoneNumber'] ?? 'N/A'}'),
+                  Text(
+                    order['userId'] != null
+                        ? order['userId']['email']
+                        : 'No Email',
+                  ),
+                  Text(
+                    'Phone: ${order['userId'] != null ? (order['userId']['phoneNumber'] ?? 'N/A') : 'N/A'}',
+                  ),
                 ],
               ),
             ),

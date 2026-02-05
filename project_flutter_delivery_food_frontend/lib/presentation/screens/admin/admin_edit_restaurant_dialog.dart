@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
@@ -135,6 +136,11 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
                     _buildTextField(
                       controller: _nameController,
                       label: 'Restaurant Name',
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[a-zA-Z\s]'),
+                        ),
+                      ],
                       validator: (v) =>
                           v?.isEmpty ?? true ? 'Name is required' : null,
                     ),
@@ -149,6 +155,8 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
                     _buildTextField(
                       controller: _phoneController,
                       label: 'Phone',
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (v) =>
                           v?.isEmpty ?? true ? 'Phone is required' : null,
                     ),
@@ -166,7 +174,14 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
                           child: _buildTextField(
                             controller: _ratingController,
                             label: 'Rating (0-5)',
-                            keyboardType: TextInputType.number,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -232,12 +247,14 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
     required String label,
     String? Function(String?)? validator,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     int maxLines = 1,
   }) {
     return TextFormField(
       controller: controller,
       validator: validator,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
@@ -122,7 +123,14 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
                       child: _buildTextField(
                         controller: _priceController,
                         label: 'Price',
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d*'),
+                          ),
+                        ],
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Required';
                           final price = double.tryParse(v);
@@ -239,12 +247,14 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
     required String label,
     int maxLines = 1,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,

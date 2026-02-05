@@ -73,14 +73,16 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                     child: Icon(Icons.shopping_bag, color: Colors.orange[800]),
                   ),
                   title: Text(
-                    'Order #${order['_id'].toString().substring(order['_id'].toString().length - 6)}',
+                    'Order #${order['_id'] != null ? order['_id'].toString().substring(order['_id'].toString().length >= 6 ? order['_id'].toString().length - 6 : 0) : 'N/A'}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
-                      Text('User: ${order['userId']['username']}'),
+                      Text(
+                        'User: ${order['userId'] != null ? order['userId']['username'] : 'Unknown'}',
+                      ),
                       Text('Amount: \$${order['totalAmount']}'),
                       Text('Status: ${order['status']}'),
                     ],

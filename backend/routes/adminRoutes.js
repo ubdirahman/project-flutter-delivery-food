@@ -111,20 +111,24 @@ router.post('/restaurants', async (req, res) => {
 
 // Create new staff
 router.post('/staff', async (req, res) => {
+    console.log('Received staff creation request:', req.body);
     try {
         const { username, email, password, phoneNumber } = req.body;
 
         if (!username || !email || !password) {
+            console.log('Missing fields:', { username: !!username, email: !!email, password: !!password });
             return res.status(400).json({ success: false, message: 'Username, email and password are required' });
         }
 
         const existingEmail = await User.findOne({ email });
         if (existingEmail) {
+            console.log('Email already exists:', email);
             return res.status(400).json({ success: false, message: 'Email already exists' });
         }
 
         const existingUsername = await User.findOne({ username });
         if (existingUsername) {
+            console.log('Username already taken:', username);
             return res.status(400).json({ success: false, message: 'Username already taken' });
         }
 
@@ -136,6 +140,7 @@ router.post('/staff', async (req, res) => {
             role: 'staff'
         });
         await staff.save();
+        console.log('Staff created successfully:', staff._id);
         res.status(201).json({ success: true, staff });
     } catch (err) {
         console.error('Staff creation error:', err);
