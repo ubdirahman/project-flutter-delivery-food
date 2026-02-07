@@ -1,66 +1,98 @@
-# 📄 Project Manual: Somali Flavors Delivery App
+# 🍴 Somali Food Delivery App - Project Documentation
 
-**Project Objective**: A high-fidelity food delivery application built with Flutter and Node.js.
-
----
-
-## 🚀 1. How to Use the App
-
-### Welcome & Authentication
-- **Splash Screen**: The app starts with a branded splash screen.
-- **Login/Register**: Users can create an account or login using their credentials. The app uses `UserProvider` to manage authentication state.
-
-### Browsing & Ordering
-1. **Home Screen**: Browse popular foods and restaurants. Use the **Category Menu** to filter results (e.g., Burgers, Pizzas).
-2. **Search**: Click the search bar to find specific dishes or restaurants.
-3. **Menu**: Click a restaurant or food item to view the detailed menu.
-4. **Cart**: Add items to your cart. Click the floating action button to view your cart items, adjust quantities, and see the total.
-5. **Checkout**: Click "Check out" in the cart screen to place your order.
-
-### Order Tracking
-- **My Orders**: Switch between **Active** orders (being prepared/delivered) and **History** (past orders) using the TabBar.
+## 📝 Overview
+This is a full-stack food delivery application designed for the Somali market. It features a robust multi-role system (User, Staff, Admin, Super Admin) allowing for seamless order placement, kitchen management, and restaurant administration.
 
 ---
 
-## 🛠️ 2. Flutter App Architecture
-
-The app follows a **Provider Pattern** for state management, ensuring a separation of concerns between UI and Business Logic.
-
-### Directory Structure
-- `lib/core/`: Application themes and global constants.
-- `lib/data/`: Data layer.
-    - `models/`: Plain Old Dart Objects (PODOs) for data mapping.
-    - `services/`: API Service class for HTTP communication.
-- `lib/presentation/`: UI layer.
-    - `screens/`: Scaffold-based page widgets.
-    - `widgets/`: Reusable component widgets.
-- `lib/providers/`: State management classes (ChangeNotifier).
+## 🏗️ Architecture
+The project follows a modern client-server architecture:
+- **Frontend**: Flutter (Mobile/Web)
+- **Backend**: Node.js & Express.js (REST API)
+- **Database**: MongoDB (NoSQL)
 
 ---
 
-## 🔌 3. Backend API Integration
+## 🛠️ Tech Stack
 
-The application connects to a **RESTful API** built with Node.js and Express.
+### Backend
+- **Express.js**: Web framework for Node.js.
+- **Mongoose**: ODM for MongoDB.
+- **Bcrypt.js**: Security for password hashing.
+- **Multer**: Handling image uploads.
+- **Dotenv**: Environment variable management.
 
-### Integration Steps:
-1. **Base URL**: The app communicates with `http://localhost:5000/api`.
-2. **Data Fetching**: The `ApiService` class uses the `http` package to send GET, POST, PUT, and DELETE requests.
-3. **JSON Parsing**: Raw response data is parsed into model objects using `json.decode`.
-4. **Error Handling**: All API calls are wrapped in try-catch blocks to handle network issues gracefully.
-
----
-
-## ✅ 4. Guidelines Compliance Checklist
-
-- [x] **Main Screen**: Implemented in `home_screen.dart`.
-- [x] **UI Components**: Used `ListView`, `Container`, `TextField`, `Custom Widgets`, etc.
-- [x] **Navigation**: Implemented `Navigator`, `Drawer`, `Bottom Nav Bar`, and `TabBar`.
-- [x] **State Management**: Using `Provider` (ChangeNotifier).
-- [x] **Backend Integration**: Connected to a Node.js REST API.
-- [x] **Responsive Design**: Used `SafeArea`, `Expanded`, and `Flexible` layouts.
-- [x] **Styling**: Consistent typography (Poppins) and colors (AppColors).
+### Frontend
+- **Flutter & Dart**: Cross-platform development.
+- **Provider**: State management.
+- **Http**: API communication.
+- **Shared Preferences**: Local data persistence.
+- **Google Fonts & SVGs**: UI enhancement.
 
 ---
 
-**Submitted by**: Eng Abdirahman Afrah hassan   
-**Date**: January 2025
+## 📂 Backend Structure
+
+### 🗃️ Models (`/backend/models/`)
+- **`User.js`**: Managed roles (admin, staff, delivery, user, superadmin), authentication, and restaurant association.
+- **`Order.js`**: Order lifecycle (Pending, Accepted, Preparing, Ready, Delivered). Includes items, total, and payment details.
+- **`Food.js`**: Dish details (name, price, category, stock availability).
+- **`Restaurant.js`**: Restaurant profiles, address, and status.
+- **`Message.js`**: Communication between users and restaurants.
+
+### 🛣️ Key API Routes (`/backend/routes/`)
+- **`/api/users`**: Authentication, registration, and profile management.
+- **`/api/foods`**: CRUD operations for food items (Admin protected).
+- **`/api/orders`**: Order placement and user order history.
+- **`/api/staff`**: Staff-specific features like kitchen status updates.
+- **`/api/admin`**: Management of restaurants, staff, and system-wide stats.
+- **`/api/messages`**: Internal messaging system.
+
+---
+
+## 📱 Frontend Structure
+
+### 🧠 State Management (`lib/providers/`)
+- **`UserProvider`**: Handles login state and role-based navigation.
+- **`FoodProvider`**: Manages the searchable menu items.
+- **`CartProvider`**: Logic for managing items being ordered.
+- **`StaffProvider`**: Real-time kitchen order management.
+- **`AdminProvider`**: statistics, staff management, and restaurant CRUD.
+
+### �️ Key UI Components (`lib/presentation/screens/`)
+- **Customer**: `home_screen`, `restaurant_menu_screen`, `cart_screen`, `orders_screen`.
+- **Staff**: `staff_dashboard`, `staff_kitchen_orders`, `delivery_dashboard`.
+- **Admin**: `admin_dashboard`, `admin_restaurants_screen`, `admin_staff_management`.
+
+---
+
+## 🚀 Key Features
+1. **Multi-Role System**: Restricted access based on user role (Admin vs Staff).
+2. **Order Lifecycle**: Real-time progress tracking from kitchen to delivery.
+3. **Restaurant Isolation**: Admins can only see and manage data for their specific restaurant.
+4. **Manual Order Creation**: Admin ability to create orders manually for walk-in customers.
+
+---
+
+## 🔧 Recent Technical Improvements
+- **Security**: Implemented `protect` and `authorize` middleware to ensure only authenticated users with correct roles can perform sensitive actions.
+- **Data Integrity**: Ensured all orders are linked via `restaurantId` to maintain strict data isolation between restaurants.
+- **API Reliability**: Fixed critical import errors and added validation for ObjectId handling to prevent server crashes.
+
+---
+
+## 💻 Running the Project
+
+### Backend
+1. Navigate to `/backend`.
+2. Run `npm install`.
+3. Configure `.env` with `MONGODB_URI`.
+4. Run `npm run dev`.
+
+### Frontend
+1. Navigate to `/project_flutter_delivery_food_frontend`.
+2. Run `flutter pub get`.
+3. Run `flutter run`.
+
+---
+*Last Updated: February 7, 2026*
