@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../providers/user_provider.dart';
 import 'admin_create_order_screen.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
@@ -16,7 +17,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<AdminProvider>().fetchAllOrders());
+    Future.microtask(() {
+      final up = context.read<UserProvider>();
+      context.read<AdminProvider>().fetchAllOrders(
+        restaurantId: up.restaurantId,
+        userId: up.userId,
+      );
+    });
   }
 
   @override
@@ -197,7 +204,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                           );
 
                           if (confirm == true) {
-                            await provider.deleteOrder(order['_id']);
+                            final up = context.read<UserProvider>();
+                            await provider.deleteOrder(
+                              order['_id'],
+                              userId: up.userId,
+                            );
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Order deleted')),

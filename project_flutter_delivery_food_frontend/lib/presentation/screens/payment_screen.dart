@@ -250,8 +250,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final cart = context.read<CartProvider>();
     final user = context.read<UserProvider>();
 
+    // Get restaurantId from the first item in the cart
+    // (Assumes all items in one order are from the same restaurant)
+    final firstItem = cart.items.values.first;
+    final restaurantId = firstItem.restaurantId;
+
     final orderData = {
       'userId': user.userId,
+      'restaurantId': restaurantId, // Add this line
       'items': cart.items.values
           .map(
             (item) => {
@@ -274,7 +280,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     };
 
     final apiService = ApiService();
-    final success = await apiService.placeOrder(orderData);
+    final success = await apiService.placeOrder(orderData, userId: user.userId);
 
     if (mounted) {
       setState(() => _isProcessing = false);

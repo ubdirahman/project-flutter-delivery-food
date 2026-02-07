@@ -1,11 +1,18 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Food = require('../models/Food');
+const { protect, authorize } = require('../middleware/auth');
 
-// Get all food items
+// Get food items (with optional restaurant filtering)
 router.get('/', async (req, res) => {
     try {
-        const foods = await Food.find();
+        const { restaurantId } = req.query;
+        let query = {};
+        if (restaurantId) {
+            query.restaurantId = restaurantId;
+        }
+        const foods = await Food.find(query);
         res.json(foods);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -13,7 +20,7 @@ router.get('/', async (req, res) => {
 });
 
 // Seed data route (Initial items)
-router.post('/seed', async (req, res) => {
+router.post('/seed', protect, authorize('superadmin'), async (req, res) => {
     const initialFoods = [
         {
             name: "Bariis with Goat Meat",
@@ -67,13 +74,26 @@ router.post('/seed', async (req, res) => {
 });
 
 // Create a new food item
-router.post('/', async (req, res) => {
+router.post('/', protect, authorize('admin', 'staff', 'superadmin'), async (req, res) => {
+    // Determine restaurantId: 
+    // Superadmin provides it in body, others use their own restaurantId
+    let restaurantId = req.body.restaurantId;
+    if (req.user.role !== 'superadmin' && req.user.restaurantId) {
+        restaurantId = req.user.restaurantId;
+    }
+
+    if (!restaurantId && req.user.role !== 'superadmin') {
+        return res.status(400).json({ success: false, message: 'You must be associated with a restaurant to add food.' });
+    }
+
     const food = new Food({
         name: req.body.name,
         description: req.body.description,
         price: req.body.price,
         image: req.body.image,
         category: req.body.category,
+        quantity: req.body.quantity || 0,
+        restaurantId: restaurantId,
         isPopular: req.body.isPopular || false
     });
 
@@ -86,32 +106,65 @@ router.post('/', async (req, res) => {
 });
 
 // Update a food item
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+    console.log(`PUT food request for ID: ${req.params.id}`);
+    console.log(`Update data:`, JSON.stringify(req.body, null, 2));
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid Food ID format' });
+        }
         const food = await Food.findById(req.params.id);
         if (food) {
+            // Check ownership
+            if (req.user.role !== 'superadmin' &&
+                req.user.restaurantId &&
+                food.restaurantId.toString() !== req.user.restaurantId.toString()) {
+                return res.status(403).json({ success: false, message: 'Unauthorized: You can only update food for your own restaurant' });
+            }
             food.name = req.body.name || food.name;
             food.description = req.body.description || food.description;
-            food.price = req.body.price || food.price;
+            food.price = req.body.price !== undefined ? req.body.price : food.price;
             food.image = req.body.image || food.image;
             food.category = req.body.category || food.category;
+            food.quantity = req.body.quantity !== undefined ? req.body.quantity : food.quantity;
             food.isPopular = req.body.isPopular !== undefined ? req.body.isPopular : food.isPopular;
+            if (req.body.restaurantId) {
+                food.restaurantId = req.body.restaurantId;
+            }
 
             const updatedFood = await food.save();
+            console.log(`Food updated successfully: ${updatedFood._id}`);
             res.json(updatedFood);
         } else {
+            console.log(`Food NOT FOUND for update: ${req.params.id}`);
             res.status(404).json({ message: 'Food not found' });
         }
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        console.error(`Food update error for ${req.params.id}:`, err);
+        res.status(400).json({
+            success: false,
+            message: err.name === 'ValidationError' ? 'Validation Failed' : err.message,
+            errors: err.errors
+        });
     }
 });
 
 // Delete a food item
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
     try {
-        const food = await Food.findByIdAndDelete(req.params.id);
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid Food ID format' });
+        }
+        const food = await Food.findById(req.params.id);
         if (food) {
+            // Check ownership
+            if (req.user.role !== 'superadmin' &&
+                req.user.restaurantId &&
+                food.restaurantId.toString() !== req.user.restaurantId.toString()) {
+                return res.status(403).json({ success: false, message: 'Unauthorized: You can only delete food for your own restaurant' });
+            }
+
+            await Food.findByIdAndDelete(req.params.id);
             res.json({ message: 'Food removed' });
         } else {
             res.status(404).json({ message: 'Food not found' });

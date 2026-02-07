@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../providers/food_provider.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../providers/user_provider.dart';
 import '../../../data/models/food_model.dart';
 
 class AdminCreateOrderScreen extends StatefulWidget {
@@ -238,8 +239,9 @@ class _AdminCreateOrderScreenState extends State<AdminCreateOrderScreen> {
       'address': 'Admin Created Order',
     };
 
+    final up = context.read<UserProvider>();
     final provider = context.read<AdminProvider>();
-    final success = await provider.createOrder(orderData);
+    final success = await provider.createOrder(orderData, userId: up.userId);
 
     if (mounted) {
       if (success) {
