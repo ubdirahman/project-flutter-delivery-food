@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../providers/user_provider.dart';
 
 class AdminStaffManagementScreen extends StatefulWidget {
   const AdminStaffManagementScreen({super.key});
@@ -18,7 +19,13 @@ class _AdminStaffManagementScreenState
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<AdminProvider>().fetchStaff());
+    Future.microtask(() {
+      final up = context.read<UserProvider>();
+      context.read<AdminProvider>().fetchStaff(
+        restaurantId: up.restaurantId,
+        userId: up.userId,
+      );
+    });
   }
 
   @override
@@ -74,7 +81,37 @@ class _AdminStaffManagementScreenState
                     staff['username'],
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(staff['email']),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(staff['email']),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: staff['role'] == 'delivery'
+                              ? Colors.blue[50]
+                              : Colors.orange[50],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          staff['role'] == 'delivery'
+                              ? 'Delivery Staff'
+                              : 'Kitchen Staff',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: staff['role'] == 'delivery'
+                                ? Colors.blue[900]
+                                : Colors.orange[900],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _showDeleteConfirm(context, staff['_id']),
@@ -100,6 +137,7 @@ class _AdminStaffManagementScreenState
     final phoneController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSaving = false;
+    String selectedRole = 'staff';
 
     showModalBottomSheet(
       context: context,
@@ -205,6 +243,52 @@ class _AdminStaffManagementScreenState
                       return null;
                     },
                   ),
+                  const SizedBox(height: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Role',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: selectedRole,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(
+                            Icons.badge_outlined,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[200]!),
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'staff',
+                            child: Text('Kitchen Staff'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'delivery',
+                            child: Text('Delivery Staff'),
+                          ),
+                        ],
+                        onChanged: (v) => setState(() => selectedRole = v!),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 30),
                   SizedBox(
                     width: double.infinity,
@@ -216,6 +300,9 @@ class _AdminStaffManagementScreenState
                               if (!formKey.currentState!.validate()) return;
 
                               setState(() => isSaving = true);
+                              final userId = context
+                                  .read<UserProvider>()
+                                  .userId;
                               final errorMessage = await context
                                   .read<AdminProvider>()
                                   .addStaff({
@@ -223,7 +310,11 @@ class _AdminStaffManagementScreenState
                                     'email': emailController.text.trim(),
                                     'password': passwordController.text,
                                     'phoneNumber': phoneController.text.trim(),
-                                  });
+                                    'role': selectedRole,
+                                    'restaurantId': context
+                                        .read<UserProvider>()
+                                        .restaurantId,
+                                  }, userId: userId);
                               setState(() => isSaving = false);
 
                               if (errorMessage == null && mounted) {
@@ -348,8 +439,10 @@ class _AdminStaffManagementScreenState
           ),
           TextButton(
             onPressed: () async {
+              final userId = context.read<UserProvider>().userId;
               final success = await context.read<AdminProvider>().deleteStaff(
                 id,
+                userId: userId,
               );
               if (success && mounted) {
                 Navigator.pop(context);

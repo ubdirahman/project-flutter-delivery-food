@@ -4,7 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../providers/user_provider.dart';
 import '../../../data/models/restaurant_model.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../data/services/admin_api_service.dart';
 
 class AdminEditRestaurantDialog extends StatefulWidget {
   final RestaurantModel? restaurant;
@@ -24,7 +27,11 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
   late TextEditingController _descController;
   late TextEditingController _ratingController;
   late TextEditingController _imageUrlController;
+  late TextEditingController _adminEmailController;
+  late TextEditingController _adminPasswordController;
+  late TextEditingController _adminUsernameController;
   bool _isLoading = false;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -47,6 +54,9 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
     _imageUrlController = TextEditingController(
       text: widget.restaurant?.image ?? '',
     );
+    _adminEmailController = TextEditingController();
+    _adminPasswordController = TextEditingController();
+    _adminUsernameController = TextEditingController();
   }
 
   @override
@@ -57,6 +67,9 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
     _descController.dispose();
     _ratingController.dispose();
     _imageUrlController.dispose();
+    _adminEmailController.dispose();
+    _adminPasswordController.dispose();
+    _adminUsernameController.dispose();
     super.dispose();
   }
 
@@ -72,23 +85,31 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
       'description': _descController.text,
       'rating': double.tryParse(_ratingController.text) ?? 0.0,
       'image': _imageUrlController.text,
+      if (widget.restaurant == null) ...{
+        'adminEmail': _adminEmailController.text,
+        'adminPassword': _adminPasswordController.text,
+        'adminUsername': _adminUsernameController.text,
+      },
     };
 
-    bool success;
+    String? error;
+    final userId = context.read<UserProvider>().userId;
     if (widget.restaurant != null) {
-      success = await context.read<AdminProvider>().updateRestaurant(
+      error = await context.read<AdminProvider>().updateRestaurant(
         widget.restaurant!.id,
         restaurantData,
+        userId: userId,
       );
     } else {
-      success = await context.read<AdminProvider>().addRestaurant(
+      error = await context.read<AdminProvider>().addRestaurant(
         restaurantData,
+        userId: userId,
       );
     }
 
     if (mounted) {
       setState(() => _isLoading = false);
-      if (success) {
+      if (error == null) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -101,8 +122,45 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save restaurant')),
+          SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() => _isLoading = true);
+
+        final apiService = AdminApiService();
+        final userId = context.read<UserProvider>().userId;
+        final imageUrl = await apiService.uploadFoodImage(
+          image,
+          userId: userId,
+        );
+
+        if (imageUrl != null) {
+          setState(() {
+            _imageUrlController.text = imageUrl;
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to upload image')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -161,11 +219,46 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
                           v?.isEmpty ?? true ? 'Phone is required' : null,
                     ),
                     const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _imageUrlController,
-                      label: 'Image URL',
-                      validator: (v) =>
-                          v?.isEmpty ?? true ? 'Image URL is required' : null,
+                    Column(
+                      children: [
+                        if (_imageUrlController.text.isNotEmpty)
+                          Container(
+                            height: 120,
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              image: DecorationImage(
+                                image: NetworkImage(_imageUrlController.text),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTextField(
+                                controller: _imageUrlController,
+                                label: 'Image URL',
+                                validator: (v) => v?.isEmpty ?? true
+                                    ? 'Image URL is required'
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: _isLoading ? null : _pickImage,
+                              icon: const Icon(Icons.image_outlined),
+                              style: IconButton.styleFrom(
+                                backgroundColor: AppColors.primary.withAlpha(
+                                  26,
+                                ),
+                                foregroundColor: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -192,6 +285,40 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
                       label: 'Description',
                       maxLines: 3,
                     ),
+                    if (widget.restaurant == null) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Admin Credentials',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(
+                        controller: _adminUsernameController,
+                        label: 'Admin Username (Optional)',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(
+                        controller: _adminEmailController,
+                        label: 'Admin Email',
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) => v?.isEmpty ?? true
+                            ? 'Admin email is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(
+                        controller: _adminPasswordController,
+                        label: 'Admin Password',
+                        obscureText: true,
+                        validator: (v) => v?.isEmpty ?? true
+                            ? 'Admin password is required'
+                            : null,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -211,6 +338,11 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
                     onPressed: _isLoading ? null : _saveRestaurant,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
+                      minimumSize: const Size(0, 0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -249,6 +381,7 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     int maxLines = 1,
+    bool obscureText = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -256,6 +389,7 @@ class _AdminEditRestaurantDialogState extends State<AdminEditRestaurantDialog> {
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       maxLines: maxLines,
+      obscureText: obscureText,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.poppins(color: Colors.grey),

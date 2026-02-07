@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../data/models/food_model.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../providers/user_provider.dart';
 import '../../../data/services/admin_api_service.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -22,6 +23,7 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
   late TextEditingController _nameController;
   late TextEditingController _descController;
   late TextEditingController _priceController;
+  late TextEditingController _quantityController;
   late TextEditingController _imageController;
   String _category = 'Fast Food';
   bool _isPopular = false;
@@ -48,6 +50,9 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
     _priceController = TextEditingController(
       text: widget.food?.price.toString() ?? '',
     );
+    _quantityController = TextEditingController(
+      text: widget.food?.quantity.toString() ?? '0',
+    );
     _imageController = TextEditingController(text: widget.food?.image ?? '');
     _category = widget.food?.category ?? 'Fast Food';
     if (!_categories.contains(_category)) _categories.add(_category);
@@ -59,6 +64,7 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
     _nameController.dispose();
     _descController.dispose();
     _priceController.dispose();
+    _quantityController.dispose();
     _imageController.dispose();
     super.dispose();
   }
@@ -136,6 +142,21 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
                           final price = double.tryParse(v);
                           if (price == null) return 'Invalid number';
                           if (price <= 0) return 'Price must be > 0';
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _quantityController,
+                        label: 'Quantity',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Required';
                           return null;
                         },
                       ),
@@ -288,7 +309,11 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
         setState(() => _isLoading = true);
 
         final apiService = AdminApiService();
-        final imageUrl = await apiService.uploadFoodImage(image);
+        final userId = context.read<UserProvider>().userId;
+        final imageUrl = await apiService.uploadFoodImage(
+          image,
+          userId: userId,
+        );
 
         if (imageUrl != null) {
           setState(() {
@@ -324,18 +349,32 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
       'name': _nameController.text,
       'description': _descController.text,
       'price': double.tryParse(_priceController.text) ?? 0.0,
+      'quantity': int.tryParse(_quantityController.text) ?? 0,
       'image': _uploadedImageUrl ?? _imageController.text,
       'category': _category,
       'isPopular': _isPopular,
+      'restaurantId': context.read<UserProvider>().restaurantId,
     };
 
-    final provider = context.read<AdminProvider>();
     bool success;
 
-    if (widget.food == null) {
-      success = await provider.addFood(foodData);
+    final up = context.read<UserProvider>();
+    final userId = up.userId;
+    final restaurantId = up.restaurantId;
+
+    foodData['restaurantId'] = restaurantId;
+
+    if (widget.food != null) {
+      success = await context.read<AdminProvider>().updateFood(
+        widget.food!.id,
+        foodData,
+        userId: userId,
+      );
     } else {
-      success = await provider.updateFood(widget.food!.id, foodData);
+      success = await context.read<AdminProvider>().addFood(
+        foodData,
+        userId: userId,
+      );
     }
 
     if (mounted) {

@@ -9,10 +9,17 @@ class ApiService {
   // This is the address of our server. "localhost" means the server is running on the same computer.
   static const String baseUrl = 'http://localhost:5000/api';
 
+  Map<String, String> _headers(String? userId) => {
+    'Content-Type': 'application/json',
+    if (userId != null) 'user-id': userId,
+  };
+
   // This function sends a GET request to the server to get all the foods.
-  Future<List<FoodModel>> getFoods() async {
+  Future<List<FoodModel>> getFoods({String? restaurantId}) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/foods'));
+      String url = '$baseUrl/foods';
+      if (restaurantId != null) url += '?restaurantId=$restaurantId';
+      final response = await http.get(Uri.parse(url));
 
       // Status code 200 means "Success"
       if (response.statusCode == 200) {
@@ -53,6 +60,7 @@ class ApiService {
     String password,
   ) async {
     try {
+      print('Sending registration request: $username, $email');
       final response = await http.post(
         Uri.parse('$baseUrl/users/register'),
         headers: {'Content-Type': 'application/json'},
@@ -62,6 +70,9 @@ class ApiService {
           'password': password,
         }),
       );
+      print('Registration response status: ${response.statusCode}');
+      print('Registration response body: ${response.body}');
+
       if (response.statusCode == 201) {
         return json.decode(response.body);
       }
@@ -74,11 +85,14 @@ class ApiService {
 
   // --- Persistence Methods ---
 
-  Future<bool> placeOrder(Map<String, dynamic> orderData) async {
+  Future<bool> placeOrder(
+    Map<String, dynamic> orderData, {
+    String? userId,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/orders'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(orderData),
       );
       return response.statusCode == 201;
@@ -92,6 +106,7 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/orders/user/$userId'),
+        headers: _headers(userId),
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -107,6 +122,7 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/users/profile/$userId'),
+        headers: _headers(userId),
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -125,7 +141,7 @@ class ApiService {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/users/profile/$userId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(profileData),
       );
       return response.statusCode == 200;
@@ -135,15 +151,21 @@ class ApiService {
     }
   }
 
-  Future<String?> uploadProfileImage(dynamic imageFile) async {
+  Future<String?> uploadProfileImage(
+    dynamic imageFile, {
+    String? userId,
+  }) async {
     try {
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/users/upload'),
       );
 
+      if (userId != null) {
+        request.headers['user-id'] = userId;
+      }
+
       if (kIsWeb) {
-        // imageFile is XFile
         final bytes = await imageFile.readAsBytes();
         request.files.add(
           http.MultipartFile.fromBytes(
@@ -154,7 +176,6 @@ class ApiService {
           ),
         );
       } else {
-        // Mobile implementation
         request.files.add(
           await http.MultipartFile.fromPath('image', imageFile.path),
         );
@@ -171,6 +192,23 @@ class ApiService {
     } catch (e) {
       print('Upload image error: $e');
       return null;
+    }
+  }
+
+  Future<bool> sendMessage(
+    Map<String, dynamic> messageData, {
+    String? userId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/messages'),
+        headers: _headers(userId),
+        body: json.encode(messageData),
+      );
+      return response.statusCode == 201;
+    } catch (e) {
+      print('Send message error: $e');
+      return false;
     }
   }
 }

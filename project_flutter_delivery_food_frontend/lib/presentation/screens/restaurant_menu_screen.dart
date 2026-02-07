@@ -6,8 +6,33 @@ import '../../providers/food_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../data/models/food_model.dart';
 
-class RestaurantMenuScreen extends StatelessWidget {
-  const RestaurantMenuScreen({super.key});
+class RestaurantMenuScreen extends StatefulWidget {
+  final String? restaurantId;
+  final String restaurantName;
+  final String? restaurantImage;
+
+  const RestaurantMenuScreen({
+    super.key,
+    this.restaurantId,
+    this.restaurantName = 'Somali House',
+    this.restaurantImage,
+  });
+
+  @override
+  State<RestaurantMenuScreen> createState() => _RestaurantMenuScreenState();
+}
+
+class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch foods for this specific restaurant when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FoodProvider>().fetchFoods(
+        restaurantId: widget.restaurantId,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +62,7 @@ class RestaurantMenuScreen extends StatelessWidget {
                 ),
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
-                    'Somali House Menu',
+                    '${widget.restaurantName} Menu',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -48,8 +73,13 @@ class RestaurantMenuScreen extends StatelessWidget {
                     fit: StackFit.expand,
                     children: [
                       Image.network(
-                        'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80',
+                        widget.restaurantImage ??
+                            'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80',
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.restaurant, size: 50),
+                        ),
                       ),
                       Container(color: Colors.black.withOpacity(0.2)),
                     ],
@@ -78,11 +108,22 @@ class RestaurantMenuScreen extends StatelessWidget {
                       const SizedBox(height: 20),
                       if (foods.isEmpty)
                         Center(
-                          child: Text(
-                            'No menu items found.',
-                            style: GoogleFonts.poppins(
-                              color: AppColors.textSecondary,
-                            ),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 40),
+                              Icon(
+                                Icons.no_food,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No menu items found for this restaurant.',
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         )
                       else
@@ -158,30 +199,62 @@ class RestaurantMenuScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '\$${food.price}',
-                  style: GoogleFonts.poppins(
-                    color: AppColors.primaryRed,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '\$${food.price}',
+                      style: GoogleFonts.poppins(
+                        color: AppColors.primaryRed,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Stock: ${food.quantity}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 10,
+                        color: food.quantity > 0 ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           GestureDetector(
-            onTap: () {
-              cartProvider.addItem(food);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${food.name} added to cart!')),
-              );
-            },
+            onTap: food.quantity > 0
+                ? () {
+                    final cartItem = cartProvider.items[food.id];
+                    if (cartItem != null &&
+                        cartItem.quantity >= food.quantity) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Cannot add more than ${food.quantity} items',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    cartProvider.addItem(food);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${food.name} added to cart!')),
+                    );
+                  }
+                : null,
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: food.quantity > 0 ? AppColors.primary : Colors.grey[300],
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.add, size: 20, color: AppColors.black),
+              child: Icon(
+                Icons.add,
+                size: 20,
+                color: food.quantity > 0 ? AppColors.black : Colors.grey[600],
+              ),
             ),
           ),
         ],

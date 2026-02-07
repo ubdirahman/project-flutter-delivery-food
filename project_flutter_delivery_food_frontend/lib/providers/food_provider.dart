@@ -13,14 +13,14 @@ class FoodProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   // This function gets the list of food from our backend server
-  Future<void> fetchFoods() async {
+  Future<void> fetchFoods({String? restaurantId}) async {
     _isLoading = true;
-    notifyListeners(); // Tells the UI to show a loading spinner
+    notifyListeners();
 
-    _foods = await _apiService.getFoods(); // Calls the backend API
+    _foods = await _apiService.getFoods(restaurantId: restaurantId);
 
     _isLoading = false;
-    notifyListeners(); // Tells the UI to stop the spinner and show the food list
+    notifyListeners();
   }
 
   List<FoodModel> get popularFoods =>

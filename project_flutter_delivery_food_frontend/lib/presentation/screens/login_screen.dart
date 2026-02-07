@@ -6,6 +6,7 @@ import 'home_screen.dart';
 import 'signup_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'staff/staff_dashboard_screen.dart';
+import 'staff/delivery_dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 
@@ -45,9 +46,15 @@ class _LoginScreenState extends State<LoginScreen> {
           final userProvider = context.read<UserProvider>();
           userProvider.setUser(response);
 
-          if (userProvider.isAdmin) {
+          if (userProvider.isAdmin || userProvider.isSuperAdmin) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+            );
+          } else if (userProvider.isDelivery) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const DeliveryDashboardScreen(),
+              ),
             );
           } else if (userProvider.isStaff) {
             Navigator.of(context).pushReplacement(

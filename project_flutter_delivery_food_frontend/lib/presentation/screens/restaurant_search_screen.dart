@@ -145,7 +145,10 @@ class _RestaurantSearchScreenState extends State<RestaurantSearchScreen> {
                   food: food,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => RestaurantMenuScreen()),
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          RestaurantMenuScreen(restaurantId: food.restaurantId),
+                    ),
                   ),
                   onAdd: () {
                     cartProvider.addItem(food);

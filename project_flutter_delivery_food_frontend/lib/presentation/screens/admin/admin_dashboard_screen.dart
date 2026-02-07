@@ -5,11 +5,13 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/colors.dart';
 import '../../../providers/admin_provider.dart';
 import '../../../providers/user_provider.dart';
+import '../../../providers/restaurant_provider.dart';
 import 'admin_orders_screen.dart';
 import 'admin_food_management_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_restaurants_screen.dart';
 import 'admin_staff_management_screen.dart';
+import 'admin_restaurant_profile_screen.dart';
 import '../login_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -23,7 +25,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<AdminProvider>().fetchDashboardData());
+    Future.microtask(() {
+      final userProvider = context.read<UserProvider>();
+      context.read<AdminProvider>().fetchDashboardData(
+        restaurantId: userProvider.restaurantId,
+        userId: userProvider.userId,
+      );
+    });
   }
 
   @override
@@ -35,18 +43,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: Text(
-          'Admin Dashboard',
-          style: GoogleFonts.poppins(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Consumer<AdminProvider>(
+          builder: (context, ap, _) {
+            final name = ap.managedRestaurant?['name'];
+            return Text(
+              name != null ? '$name Admin' : 'Admin Dashboard',
+              style: GoogleFonts.poppins(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          },
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              context.read<AdminProvider>().fetchDashboardData();
+              final up = context.read<UserProvider>();
+              context.read<AdminProvider>().fetchDashboardData(
+                restaurantId: up.restaurantId,
+                userId: up.userId,
+              );
             },
             tooltip: 'Refresh Data',
           ),
@@ -69,27 +86,88 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           final stats = adminProvider.stats;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Overview',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Consumer<UserProvider>(
+                    builder: (context, userProv, _) {
+                      if (userProv.isSuperAdmin) {
+                        return _buildRestaurantSelector(context);
+                      }
+                      return const SizedBox.shrink();
+                    },
                   ),
-                ),
-                const SizedBox(height: 20),
-                _buildStatCards(stats),
-                const SizedBox(height: 24),
-                _buildPerformanceChart(adminProvider.performanceData),
-                const SizedBox(height: 24),
-                _buildRecentOrders(adminProvider.allOrders),
-                const SizedBox(height: 24),
-                _buildQuickActions(context),
-              ],
+                  const SizedBox(height: 10),
+                  Text(
+                    'Overview',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildStatCards(stats, context),
+                  const SizedBox(height: 24),
+                  if (adminProvider.topRestaurants.isNotEmpty &&
+                      !(Provider.of<UserProvider>(
+                            context,
+                            listen: false,
+                          ).isSuperAdmin &&
+                          adminProvider.selectedFilterRestaurantId ==
+                              null)) ...[
+                    _buildTopRestaurants(adminProvider.topRestaurants),
+                    const SizedBox(height: 24),
+                  ],
+                  Consumer2<UserProvider, AdminProvider>(
+                    builder: (context, userProv, adminProv, _) {
+                      // Hide chart for Super Admin in Global View
+                      if (userProv.isSuperAdmin &&
+                          adminProv.selectedFilterRestaurantId == null) {
+                        return const SizedBox.shrink();
+                      }
+                      return _buildPerformanceChart(adminProv.performanceData);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  if (!adminProvider.isLoading &&
+                      Provider.of<AdminProvider>(
+                            context,
+                            listen: false,
+                          ).stats['topSellingItems'] !=
+                          null &&
+                      !(Provider.of<UserProvider>(
+                            context,
+                            listen: false,
+                          ).isSuperAdmin &&
+                          adminProvider.selectedFilterRestaurantId ==
+                              null)) ...[
+                    _buildTopSellingItems(
+                      List<dynamic>.from(
+                        adminProvider.stats['topSellingItems'] ?? [],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (!adminProvider.isLoading &&
+                      !Provider.of<UserProvider>(
+                        context,
+                        listen: false,
+                      ).isSuperAdmin) ...[
+                    const SizedBox(height: 24),
+                    _buildRecentOrders(
+                      adminProvider.allOrders,
+                    ), // Only show for Restaurant Admin
+                    const SizedBox(height: 24),
+                    _buildQuickActions(
+                      context,
+                    ), // Only show for Restaurant Admin
+                  ],
+                  const SizedBox(height: 20), // Bottom padding
+                ],
+              ),
             ),
           );
         },
@@ -97,7 +175,102 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildStatCards(Map<String, dynamic> stats) {
+  Widget _buildRestaurantSelector(BuildContext context) {
+    return Consumer2<RestaurantProvider, UserProvider>(
+      builder: (context, restProv, userProv, _) {
+        final restaurants = restProv.restaurants;
+        final selectedId = context
+            .watch<AdminProvider>()
+            .selectedFilterRestaurantId;
+
+        // Ensure selectedId is valid
+        final isValidSelection =
+            selectedId == null || restaurants.any((r) => r.id == selectedId);
+        final effectiveSelectedId = isValidSelection ? selectedId : null;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.restaurant, color: AppColors.primary, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: effectiveSelectedId,
+                    hint: Text(
+                      'All Restaurants',
+                      style: GoogleFonts.poppins(fontSize: 14),
+                    ),
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(
+                          'All Restaurants',
+                          style: GoogleFonts.poppins(fontSize: 14),
+                        ),
+                      ),
+                      ...restaurants.map((r) {
+                        return DropdownMenuItem<String?>(
+                          value: r.id,
+                          child: Text(
+                            r.name,
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      context
+                          .read<AdminProvider>()
+                          .setSelectedFilterRestaurantId(value);
+                      context.read<AdminProvider>().fetchDashboardData(
+                        restaurantId: value,
+                        userId: userProv.userId,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCards(Map<String, dynamic> stats, BuildContext context) {
+    final userProv = Provider.of<UserProvider>(context, listen: false);
+    final adminProv = Provider.of<AdminProvider>(context, listen: false);
+
+    final isSuperAdminGlobal =
+        userProv.isSuperAdmin && adminProv.selectedFilterRestaurantId == null;
+
+    if (isSuperAdminGlobal) {
+      return Center(
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.5,
+          child: _buildStatCard(
+            'Total Restaurants',
+            '${stats['totalRestaurants'] ?? 0}',
+            Icons.restaurant,
+            Colors.indigo,
+          ),
+        ),
+      );
+    }
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -109,26 +282,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _buildStatCard(
           'Total Orders',
           '${stats['totalOrders'] ?? 0}',
-          Icons.shopping_bag,
+          Icons.shopping_bag_outlined,
           Colors.blue,
         ),
         _buildStatCard(
           'Total Revenue',
-          '\$${stats['totalRevenue'] ?? 0}',
+          '\$${stats['totalRevenue']?.toStringAsFixed(2) ?? '0.00'}',
           Icons.attach_money,
           Colors.green,
-          subtitle: '${stats['totalItemsSold'] ?? 0} items sold',
         ),
         _buildStatCard(
-          'Ongoing',
-          '${stats['ongoingOrders'] ?? 0}',
-          Icons.delivery_dining,
-          Colors.purple,
+          'My Restaurant',
+          '${userProv.isSuperAdmin ? stats['totalRestaurants'] : 1}',
+          Icons.restaurant,
+          Colors.indigo,
         ),
         _buildStatCard(
-          'Total Staff',
-          '${stats['totalStaff'] ?? 0}',
-          Icons.people,
+          'My Customers',
+          '${stats['totalCustomers'] ?? 0}',
+          Icons.people_outline,
           Colors.orange,
         ),
       ],
@@ -336,6 +508,166 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildTopRestaurants(List<dynamic> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Top Performing Restaurants',
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (context, index) =>
+                Divider(height: 1, color: Colors.grey[100]),
+            itemBuilder: (context, index) {
+              final res = items[index];
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: res['image'] != null && res['image'].isNotEmpty
+                      ? Image.network(
+                          res['image'],
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 48,
+                            height: 48,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.restaurant, size: 20),
+                          ),
+                        )
+                      : Container(
+                          width: 48,
+                          height: 48,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.restaurant, size: 20),
+                        ),
+                ),
+                title: Text(
+                  res['name'] ?? 'Restaurant',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  '${res['totalOrders']} orders',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: Text(
+                  '\$${res['totalRevenue']?.toStringAsFixed(2) ?? '0.00'}',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopSellingItems(List<dynamic> items) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Top Selling Products',
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (context, index) =>
+                Divider(height: 1, color: Colors.grey[100]),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: item['image'] != null && item['image'].isNotEmpty
+                      ? Image.network(
+                          item['image'],
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 48,
+                            height: 48,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.fastfood, size: 20),
+                          ),
+                        )
+                      : Container(
+                          width: 48,
+                          height: 48,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.fastfood, size: 20),
+                        ),
+                ),
+                title: Text(
+                  item['name'] ?? 'Product',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  '${item['totalQuantity']} sold • ${item['totalOrders']} orders',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: Text(
+                  '\$${item['totalRevenue']?.toStringAsFixed(2) ?? '0.00'}',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRecentOrders(List<dynamic> orders) {
     final recentOrders = orders.take(5).toList();
 
@@ -516,6 +848,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildDrawer(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final isSuperAdmin = userProvider.isSuperAdmin;
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -537,7 +872,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Admin Panel',
+                  isSuperAdmin ? 'Global Admin' : 'Restaurant Admin',
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontSize: 20,
@@ -552,67 +887,88 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             title: const Text('Dashboard'),
             onTap: () => Navigator.pop(context),
           ),
-          ListTile(
-            leading: const Icon(Icons.shopping_bag),
-            title: const Text('Orders'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminOrdersScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.fastfood),
-            title: const Text('Menu Management'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AdminFoodManagementScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.restaurant),
-            title: const Text('Restaurants'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AdminRestaurantsScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.bar_chart),
-            title: const Text('Reports'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminReportsScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.people),
-            title: const Text('Staff Management'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AdminStaffManagementScreen(),
-                ),
-              );
-            },
-          ),
+          if (!isSuperAdmin)
+            ListTile(
+              leading: const Icon(Icons.shopping_bag),
+              title: const Text('Orders'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminOrdersScreen()),
+                );
+              },
+            ),
+          if (!isSuperAdmin) ...[
+            ListTile(
+              leading: const Icon(Icons.fastfood),
+              title: const Text('Menu Management'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminFoodManagementScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+          if (isSuperAdmin) ...[
+            ListTile(
+              leading: const Icon(Icons.restaurant),
+              title: const Text('Restaurants'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminRestaurantsScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+          if (!isSuperAdmin)
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('Reports'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminReportsScreen()),
+                );
+              },
+            ),
+          if (!isSuperAdmin) ...[
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Staff Management'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminStaffManagementScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.restaurant_outlined),
+              title: const Text('Restaurant Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminRestaurantProfileScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),

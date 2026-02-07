@@ -46,7 +46,12 @@ class HomePopularFoods extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const RestaurantMenuScreen(),
+                    builder: (_) => RestaurantMenuScreen(
+                      restaurantId: food.restaurantId,
+                      restaurantName:
+                          'Restaurant Menu', // Generic if ID not found
+                      // In a real app, we'd look up the restaurant name from ID
+                    ),
                   ),
                 ),
                 onAdd: () {

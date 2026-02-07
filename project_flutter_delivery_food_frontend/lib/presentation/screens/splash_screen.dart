@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/colors.dart';
 import 'onboarding_screen.dart';
+import 'home_screen.dart';
+import 'admin/admin_dashboard_screen.dart';
+import 'staff/staff_dashboard_screen.dart';
+import 'staff/delivery_dashboard_screen.dart';
+import '../../providers/user_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -26,13 +32,41 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    final userProvider = context.read<UserProvider>();
+    await userProvider.loadUser();
+
+    await Future.delayed(const Duration(seconds: 3));
+
+    if (mounted) {
+      if (userProvider.isAuthenticated) {
+        // Route based on role
+        if (userProvider.isAdmin || userProvider.isSuperAdmin) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+          );
+        } else if (userProvider.isDelivery) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const DeliveryDashboardScreen()),
+          );
+        } else if (userProvider.isStaff) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const StaffDashboardScreen()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
+      } else {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const OnboardingScreen()),
         );
       }
-    });
+    }
   }
 
   @override

@@ -6,9 +6,22 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class AdminApiService {
   static const String baseUrl = 'http://localhost:5000/api/admin';
 
-  Future<Map<String, dynamic>> getDashboardStats() async {
+  Map<String, String> _headers(String? userId) => {
+    'Content-Type': 'application/json',
+    if (userId != null) 'user-id': userId,
+  };
+
+  Future<Map<String, dynamic>> getDashboardStats({
+    String? restaurantId,
+    String? userId,
+  }) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/stats'));
+      String url = '$baseUrl/stats';
+      if (restaurantId != null) url += '?restaurantId=$restaurantId';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers(userId),
+      );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
@@ -19,9 +32,17 @@ class AdminApiService {
     }
   }
 
-  Future<List<dynamic>> getPerformanceData() async {
+  Future<List<dynamic>> getPerformanceData({
+    String? restaurantId,
+    String? userId,
+  }) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/performance'));
+      String url = '$baseUrl/performance';
+      if (restaurantId != null) url += '?restaurantId=$restaurantId';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers(userId),
+      );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
@@ -32,9 +53,17 @@ class AdminApiService {
     }
   }
 
-  Future<List<dynamic>> getAllOrders() async {
+  Future<List<dynamic>> getAllOrders({
+    String? restaurantId,
+    String? userId,
+  }) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/orders'));
+      String url = '$baseUrl/orders';
+      if (restaurantId != null) url += '?restaurantId=$restaurantId';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers(userId),
+      );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
@@ -45,12 +74,15 @@ class AdminApiService {
     }
   }
 
-  Future<bool> updateOrderStatus(String orderId, String status) async {
+  Future<bool> updateOrderStatus(
+    String orderId,
+    String status, {
+    String? userId,
+  }) async {
     try {
-      // Assuming we use orderRoutes for this as it's a general order update
-      final response = await http.put(
+      final response = await http.patch(
         Uri.parse('http://localhost:5000/api/orders/$orderId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode({'status': status}),
       );
       return response.statusCode == 200;
@@ -60,11 +92,11 @@ class AdminApiService {
     }
   }
 
-  Future<bool> addFood(Map<String, dynamic> foodData) async {
+  Future<bool> addFood(Map<String, dynamic> foodData, {String? userId}) async {
     try {
       final response = await http.post(
         Uri.parse('http://localhost:5000/api/foods'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(foodData),
       );
       return response.statusCode == 201;
@@ -74,11 +106,15 @@ class AdminApiService {
     }
   }
 
-  Future<bool> updateFood(String id, Map<String, dynamic> foodData) async {
+  Future<bool> updateFood(
+    String id,
+    Map<String, dynamic> foodData, {
+    String? userId,
+  }) async {
     try {
       final response = await http.put(
         Uri.parse('http://localhost:5000/api/foods/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(foodData),
       );
       return response.statusCode == 200;
@@ -88,10 +124,11 @@ class AdminApiService {
     }
   }
 
-  Future<bool> deleteFood(String id) async {
+  Future<bool> deleteFood(String id, {String? userId}) async {
     try {
       final response = await http.delete(
         Uri.parse('http://localhost:5000/api/foods/$id'),
+        headers: _headers(userId),
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -100,11 +137,14 @@ class AdminApiService {
     }
   }
 
-  Future<bool> createOrder(Map<String, dynamic> orderData) async {
+  Future<bool> createOrder(
+    Map<String, dynamic> orderData, {
+    String? userId,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('http://localhost:5000/api/orders'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(orderData),
       );
       return response.statusCode == 201;
@@ -114,10 +154,11 @@ class AdminApiService {
     }
   }
 
-  Future<bool> deleteOrder(String orderId) async {
+  Future<bool> deleteOrder(String orderId, {String? userId}) async {
     try {
       final response = await http.delete(
         Uri.parse('http://localhost:5000/api/orders/$orderId'),
+        headers: _headers(userId),
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -126,12 +167,16 @@ class AdminApiService {
     }
   }
 
-  Future<String?> uploadFoodImage(dynamic imageFile) async {
+  Future<String?> uploadFoodImage(dynamic imageFile, {String? userId}) async {
     try {
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('http://localhost:5000/api/users/upload'),
       );
+
+      if (userId != null) {
+        request.headers['user-id'] = userId;
+      }
 
       if (kIsWeb) {
         final bytes = await imageFile.readAsBytes();
@@ -164,9 +209,12 @@ class AdminApiService {
   }
 
   // Restaurant Methods
-  Future<List<dynamic>> getRestaurants() async {
+  Future<List<dynamic>> getRestaurants({String? userId}) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/restaurants'));
+      final response = await http.get(
+        Uri.parse('$baseUrl/restaurants'),
+        headers: _headers(userId),
+      );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
@@ -177,40 +225,99 @@ class AdminApiService {
     }
   }
 
-  Future<bool> addRestaurant(Map<String, dynamic> restaurantData) async {
+  Future<List<dynamic>> getTopRestaurants({String? userId}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/top-restaurants'),
+        headers: _headers(userId),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return [];
+    } catch (e) {
+      print('Get top restaurants error: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> getMyRestaurant({String? userId}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/my-restaurant'),
+        headers: _headers(userId),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Get my restaurant error: $e');
+      return null;
+    }
+  }
+
+  Future<List<dynamic>> getRestaurantsWithStats({String? userId}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/restaurants-with-stats'),
+        headers: _headers(userId),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return [];
+    } catch (e) {
+      print('Get restaurants with stats error: $e');
+      return [];
+    }
+  }
+
+  Future<String?> addRestaurant(
+    Map<String, dynamic> restaurantData, {
+    String? userId,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/restaurants'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(restaurantData),
       );
-      return response.statusCode == 201;
+      if (response.statusCode == 201) return null;
+      final data = json.decode(response.body);
+      return data['message'] ?? 'Failed to add restaurant';
     } catch (e) {
       print('Add restaurant error: $e');
-      return false;
+      return e.toString();
     }
   }
 
-  Future<bool> updateRestaurant(
+  Future<String?> updateRestaurant(
     String id,
-    Map<String, dynamic> restaurantData,
-  ) async {
+    Map<String, dynamic> restaurantData, {
+    String? userId,
+  }) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/restaurants/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(restaurantData),
       );
-      return response.statusCode == 200;
+      if (response.statusCode == 200) return null;
+      final data = json.decode(response.body);
+      return data['message'] ?? 'Failed to update restaurant';
     } catch (e) {
       print('Update restaurant error: $e');
-      return false;
+      return e.toString();
     }
   }
 
-  Future<bool> deleteRestaurant(String id) async {
+  Future<bool> deleteRestaurant(String id, {String? userId}) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/restaurants/$id'));
+      final response = await http.delete(
+        Uri.parse('$baseUrl/restaurants/$id'),
+        headers: _headers(userId),
+      );
       return response.statusCode == 200;
     } catch (e) {
       print('Delete restaurant error: $e');
@@ -219,9 +326,14 @@ class AdminApiService {
   }
 
   // Staff Management
-  Future<List<dynamic>> getStaff() async {
+  Future<List<dynamic>> getStaff({String? restaurantId, String? userId}) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/staff'));
+      String url = '$baseUrl/staff';
+      if (restaurantId != null) url += '?restaurantId=$restaurantId';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers(userId),
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is List) return data;
@@ -234,11 +346,14 @@ class AdminApiService {
     }
   }
 
-  Future<Map<String, dynamic>> addStaff(Map<String, dynamic> staffData) async {
+  Future<Map<String, dynamic>> addStaff(
+    Map<String, dynamic> staffData, {
+    String? userId,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/staff'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(userId),
         body: json.encode(staffData),
       );
       if (response.statusCode == 201) {
@@ -256,9 +371,12 @@ class AdminApiService {
     }
   }
 
-  Future<bool> deleteStaff(String id) async {
+  Future<bool> deleteStaff(String id, {String? userId}) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/staff/$id'));
+      final response = await http.delete(
+        Uri.parse('$baseUrl/staff/$id'),
+        headers: _headers(userId),
+      );
       return response.statusCode == 200;
     } catch (e) {
       print('Delete staff error: $e');

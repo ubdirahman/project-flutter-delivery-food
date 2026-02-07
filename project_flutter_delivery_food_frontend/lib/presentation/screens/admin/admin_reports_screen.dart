@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/colors.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../providers/user_provider.dart';
 
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
@@ -16,7 +17,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<AdminProvider>().fetchDashboardData());
+    Future.microtask(() {
+      final up = context.read<UserProvider>();
+      final ap = context.read<AdminProvider>();
+      ap.fetchDashboardData(
+        restaurantId: up.isSuperAdmin
+            ? ap.selectedFilterRestaurantId
+            : up.restaurantId,
+        userId: up.userId,
+      );
+    });
   }
 
   @override
@@ -38,7 +48,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              context.read<AdminProvider>().fetchDashboardData();
+              final userProvider = context.read<UserProvider>();
+              context.read<AdminProvider>().fetchDashboardData(
+                restaurantId: userProvider.restaurantId,
+              );
             },
           ),
         ],
@@ -60,6 +73,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 _buildSalesOverview(stats),
                 const SizedBox(height: 30),
                 _buildRevenueChart(performance),
+                const SizedBox(height: 30),
+                _buildOrdersBarChart(performance),
                 const SizedBox(height: 30),
                 _buildOrderStatusDistribution(stats),
               ],
@@ -355,6 +370,104 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 ],
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrdersBarChart(List<dynamic> performance) {
+    if (performance.isEmpty) return const SizedBox.shrink();
+
+    double maxOrders = performance.fold<double>(0, (prev, e) {
+      final orders = e['orders'];
+      final value = orders is int
+          ? orders.toDouble()
+          : (orders as double? ?? 0.0);
+      return value > prev ? value : prev;
+    });
+    maxOrders = maxOrders < 5 ? 10 : maxOrders + 2;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Weekly Orders (Bar Chart)',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 250,
+            child: BarChart(
+              BarChartData(
+                maxY: maxOrders,
+                alignment: BarChartAlignment.spaceAround,
+                gridData: const FlGridData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        int index = value.toInt();
+                        if (index >= 0 && index < performance.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              performance[index]['date'] ?? '',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: performance.asMap().entries.map((e) {
+                  final orders = e.value['orders'];
+                  final orderValue = orders is int
+                      ? orders.toDouble()
+                      : (orders as double? ?? 0.0);
+                  return BarChartGroupData(
+                    x: e.key,
+                    barRods: [
+                      BarChartRodData(
+                        toY: orderValue,
+                        color: Colors.blueAccent,
+                        width: 16,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         ],
       ),

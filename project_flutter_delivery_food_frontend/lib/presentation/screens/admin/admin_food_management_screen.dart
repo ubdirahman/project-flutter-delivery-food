@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../providers/food_provider.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../providers/user_provider.dart';
 import '../../../data/models/food_model.dart';
 import 'admin_edit_food_dialog.dart';
 
@@ -19,7 +20,12 @@ class _AdminFoodManagementScreenState extends State<AdminFoodManagementScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<FoodProvider>().fetchFoods());
+    Future.microtask(() {
+      final userProvider = context.read<UserProvider>();
+      context.read<FoodProvider>().fetchFoods(
+        restaurantId: userProvider.restaurantId,
+      );
+    });
   }
 
   @override
@@ -81,7 +87,7 @@ class _AdminFoodManagementScreenState extends State<AdminFoodManagementScreen> {
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '\$${food.price} • ${food.category}',
+          '\$${food.price} • ${food.category} • stock: ${food.quantity}',
           style: GoogleFonts.poppins(color: Colors.grey[600]),
         ),
         trailing: Row(
@@ -106,7 +112,12 @@ class _AdminFoodManagementScreenState extends State<AdminFoodManagementScreen> {
       context: context,
       builder: (context) => AdminEditFoodDialog(food: food),
     ).then((_) {
-      if (mounted) context.read<FoodProvider>().fetchFoods();
+      if (mounted) {
+        final userProvider = context.read<UserProvider>();
+        context.read<FoodProvider>().fetchFoods(
+          restaurantId: userProvider.restaurantId,
+        );
+      }
     });
   }
 
@@ -126,9 +137,13 @@ class _AdminFoodManagementScreenState extends State<AdminFoodManagementScreen> {
               Navigator.pop(context);
               final success = await context.read<AdminProvider>().deleteFood(
                 food.id,
+                userId: context.read<UserProvider>().userId,
               );
               if (success && mounted) {
-                context.read<FoodProvider>().fetchFoods();
+                final userProvider = context.read<UserProvider>();
+                context.read<FoodProvider>().fetchFoods(
+                  restaurantId: userProvider.restaurantId,
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Item deleted successfully')),
                 );

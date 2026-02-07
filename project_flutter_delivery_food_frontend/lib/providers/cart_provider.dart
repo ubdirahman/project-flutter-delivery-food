@@ -18,6 +18,11 @@ class CartProvider with ChangeNotifier {
 
   void addItem(FoodModel food) {
     if (_items.containsKey(food.id)) {
+      final existing = _items[food.id]!;
+      if (existing.quantity >= food.quantity) {
+        // Cannot add more than available stock
+        return;
+      }
       _items.update(
         food.id,
         (existing) => CartItem(
@@ -26,9 +31,12 @@ class CartProvider with ChangeNotifier {
           price: existing.price,
           quantity: existing.quantity + 1,
           image: existing.image,
+          maxQuantity: food.quantity,
+          restaurantId: food.restaurantId,
         ),
       );
     } else {
+      if (food.quantity <= 0) return; // Cannot add out of stock
       _items.putIfAbsent(
         food.id,
         () => CartItem(
@@ -37,6 +45,8 @@ class CartProvider with ChangeNotifier {
           price: food.price,
           quantity: 1,
           image: food.image,
+          maxQuantity: food.quantity,
+          restaurantId: food.restaurantId,
         ),
       );
     }
@@ -45,6 +55,10 @@ class CartProvider with ChangeNotifier {
 
   void incrementQuantity(String foodId) {
     if (_items.containsKey(foodId)) {
+      final existing = _items[foodId]!;
+      if (existing.quantity >= existing.maxQuantity) {
+        return;
+      }
       _items.update(
         foodId,
         (existing) => CartItem(
@@ -53,6 +67,8 @@ class CartProvider with ChangeNotifier {
           price: existing.price,
           quantity: existing.quantity + 1,
           image: existing.image,
+          maxQuantity: existing.maxQuantity,
+          restaurantId: existing.restaurantId,
         ),
       );
       notifyListeners();
@@ -70,11 +86,12 @@ class CartProvider with ChangeNotifier {
             price: existing.price,
             quantity: existing.quantity - 1,
             image: existing.image,
+            maxQuantity: existing.maxQuantity,
+            restaurantId: existing.restaurantId,
           ),
         );
         notifyListeners();
       }
-      // If quantity is 1, do nothing - don't remove the item
     }
   }
 
@@ -95,6 +112,8 @@ class CartItem {
   final double price;
   final int quantity;
   final String image;
+  final int maxQuantity;
+  final String? restaurantId;
 
   CartItem({
     required this.id,
@@ -102,5 +121,7 @@ class CartItem {
     required this.price,
     required this.quantity,
     required this.image,
+    required this.maxQuantity,
+    this.restaurantId,
   });
 }

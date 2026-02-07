@@ -301,8 +301,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final userProvider = context.read<UserProvider>();
     final cartProvider = context.read<CartProvider>();
 
+    String? restaurantId;
+    if (cartProvider.items.isNotEmpty) {
+      restaurantId = cartProvider.items.values.first.restaurantId;
+    }
+
     final orderData = {
       'userId': userProvider.userId,
+      'restaurantId': restaurantId,
       'items': cartProvider.items.values
           .map(
             (item) => {
@@ -316,10 +322,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           .toList(),
       'totalAmount': widget.totalAmount,
       'paymentMethod': selectedMethod,
-      'address': 'Mogadishu, Somalia', // In a real app, this would be dynamic
+      'address': 'Mogadishu, Somalia',
     };
 
-    final success = await ApiService().placeOrder(orderData);
+    final success = await ApiService().placeOrder(
+      orderData,
+      userId: userProvider.userId,
+    );
 
     if (success) {
       cartProvider.clear();

@@ -277,7 +277,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Uploading image...')));
 
-      final imageUrl = await ApiService().uploadProfileImage(image);
+      final imageUrl = await ApiService().uploadProfileImage(
+        image,
+        userId: userProvider.userId,
+      );
 
       if (imageUrl != null) {
         final success = await ApiService().updateUserProfile(

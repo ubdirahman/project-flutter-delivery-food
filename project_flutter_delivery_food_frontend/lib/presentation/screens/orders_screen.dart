@@ -157,12 +157,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(15),
-                  child: Image.network(
-                    order['items'][0]['image'] ?? '',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.fastfood, color: Colors.grey),
-                  ),
+                  child:
+                      (order['items'] != null &&
+                          (order['items'] as List).isNotEmpty)
+                      ? Image.network(
+                          order['items'][0]['image'] ?? '',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.fastfood, color: Colors.grey),
+                        )
+                      : const Icon(Icons.fastfood, color: Colors.grey),
                 ),
               ),
               const SizedBox(width: 16),
@@ -246,6 +250,44 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         _buildStatusBadge(status),
                       ],
                     ),
+                    const Divider(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (![
+                          'Delivered',
+                          'Rejected',
+                          'Cancelled',
+                        ].contains(status))
+                          TextButton.icon(
+                            onPressed: () => _showMessageDialog(
+                              order,
+                              'delay_report',
+                              'Report Delay',
+                              'The order is taking too long...',
+                            ),
+                            icon: const Icon(Icons.timer, size: 16),
+                            label: const Text('Report Delay'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.orange[800],
+                            ),
+                          ),
+                        if (status == 'Delivered')
+                          TextButton.icon(
+                            onPressed: () => _showMessageDialog(
+                              order,
+                              'feedback',
+                              'Give Feedback',
+                              'How was the food?',
+                            ),
+                            icon: const Icon(Icons.rate_review, size: 16),
+                            label: const Text('Give Feedback'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primaryRed,
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -253,6 +295,79 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showMessageDialog(
+    Map<String, dynamic> order,
+    String type,
+    String title,
+    String hint,
+  ) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Order #${order['_id'].toString().substring(order['_id'].toString().length - 6)}',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: hint,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.isEmpty) return;
+              final userProvider = context.read<UserProvider>();
+              final success = await _apiService.sendMessage({
+                'senderId': userProvider.userId,
+                'restaurantId': order['restaurantId'],
+                'orderId': order['_id'],
+                'content': controller.text,
+                'type': type,
+              }, userId: userProvider.userId);
+              if (mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Message sent to admin'
+                          : 'Failed to send message',
+                    ),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryRed,
+            ),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
     );
   }
 

@@ -39,7 +39,11 @@ class HomePopularRestaurants extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const RestaurantMenuScreen(),
+                    builder: (_) => RestaurantMenuScreen(
+                      restaurantId: restaurant.id,
+                      restaurantName: restaurant.name,
+                      restaurantImage: restaurant.image,
+                    ),
                   ),
                 ),
                 child: Container(

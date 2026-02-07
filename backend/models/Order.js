@@ -18,6 +18,7 @@ const orderSchema = new mongoose.Schema({
         default: 'Pending'
     },
     staffId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    deliveryId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     rejectionReason: { type: String, default: '' },
     paymentMethod: { type: String, enum: ['Cash on Delivery', 'Credit Card', 'Debit Card', 'Mobile Money', 'EVC-PLUS', 'SAHAL'], default: 'Cash on Delivery' },
     paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed'], default: 'Pending' },

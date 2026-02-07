@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../providers/staff_provider.dart';
 import '../../../providers/user_provider.dart';
 
@@ -11,213 +12,463 @@ class StaffOrderDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final staffProv = context.read<StaffProvider>();
     final userProv = context.read<UserProvider>();
+    final isDelivery = userProv.isDelivery;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Order Details'),
-        backgroundColor: Colors.orange[800],
+        title: Text(
+          isDelivery ? 'Delivery Progress' : 'Kitchen Management',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: isDelivery ? Colors.blue[800] : Colors.blue[900],
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('Customer Information'),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: Text(
-                order['userId'] != null
-                    ? order['userId']['username']
-                    : 'Unknown User',
-              ),
-              subtitle: Column(
+            _buildStatusBanner(),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    order['userId'] != null
-                        ? order['userId']['email']
-                        : 'No Email',
+                  _buildSectionTitle('Customer Infomation'),
+                  _buildInfoCard(
+                    icon: Icons.person_outline,
+                    title: order['userId'] != null
+                        ? order['userId']['username']
+                        : 'Unknown User',
+                    subtitle: order['userId'] != null
+                        ? '${order['userId']['email']}\nPhone: ${order['userId']['phoneNumber'] ?? 'N/A'}'
+                        : 'No contact info',
                   ),
-                  Text(
-                    'Phone: ${order['userId'] != null ? (order['userId']['phoneNumber'] ?? 'N/A') : 'N/A'}',
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
-            _buildSectionTitle('Order Items'),
-            ...(order['items'] as List).map(
-              (item) => ListTile(
-                leading: const Icon(Icons.fastfood),
-                title: Text(item['name']),
-                subtitle: Text('Quantity: ${item['quantity']}'),
-                trailing: Text('\$${item['price']}'),
-              ),
-            ),
-            const Divider(),
-            _buildSectionTitle('Payment & Address'),
-            Text(
-              'Amount: \$${order['totalAmount']}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            Text('Payment Method: ${order['paymentMethod']}'),
-            Text('Payment Status: ${order['paymentStatus']}'),
-            Text('Address: ${order['address']}'),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Actions'),
-            const SizedBox(height: 8),
-            if (order['status'] == 'Pending') ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                      onPressed: () async {
-                        final success = await staffProv.acceptOrder(
-                          order['_id'],
-                          userProv.userId!,
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Order Items'),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      children: (order['items'] as List).map((item) {
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.fastfood_outlined,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            item['name'],
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Quantity: ${item['quantity']}',
+                            style: GoogleFonts.poppins(fontSize: 12),
+                          ),
+                          trailing: Text(
+                            '\$${item['price']}',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[900],
+                            ),
+                          ),
                         );
-                        if (success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Order Accepted')),
-                          );
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: const Text(
-                        'Accept Order',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      }).toList(),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                      onPressed: () => _showRejectDialog(context, order['_id']),
-                      child: const Text(
-                        'Reject Order',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Payment & Delivery'),
+                  _buildInfoCard(
+                    icon: Icons.location_on_outlined,
+                    title: 'Delivery Address',
+                    subtitle: order['address'] ?? 'Mogadishu, Somalia',
                   ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.payments_outlined,
+                    title: 'Payment Details',
+                    subtitle:
+                        'Method: ${order['paymentMethod']}\nStatus: ${order['paymentStatus']}\nTotal: \$${order['totalAmount']}',
+                  ),
+                  const SizedBox(height: 32),
+                  _buildActionButtons(context, userProv, staffProv),
+                  const SizedBox(height: 40),
                 ],
               ),
-            ] else if (order['status'] == 'Accepted') ...[
-              _buildStatusButton(
-                context,
-                order['_id'],
-                'Preparing',
-                'Start Preparing',
-              ),
-            ] else if (order['status'] == 'Preparing') ...[
-              _buildStatusButton(
-                context,
-                order['_id'],
-                'Ready',
-                'Mark as Ready',
-              ),
-            ] else if (order['status'] == 'Ready') ...[
-              _buildStatusButton(
-                context,
-                order['_id'],
-                'Handed to Delivery',
-                'Handed to Delivery',
-              ),
-            ] else ...[
-              Text(
-                'Current Status: ${order['status']}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildStatusBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.blue[900],
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Order Status',
+            style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${order['status']}',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '#${order['_id'].toString().substring(order['_id'].toString().length - 6)}',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 18,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: Colors.orange,
+          color: Colors.black87,
         ),
       ),
     );
   }
 
-  Widget _buildStatusButton(
-    BuildContext context,
-    String orderId,
-    String nextStatus,
-    String label,
-  ) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[800]),
-        onPressed: () async {
-          final success = await context.read<StaffProvider>().updateStatus(
-            orderId,
-            nextStatus,
-          );
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Order status updated to $nextStatus')),
-            );
-            Navigator.pop(context);
-          }
-        },
-        child: Text(label, style: const TextStyle(color: Colors.white)),
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.blue[900], size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[600],
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildActionButtons(
+    BuildContext context,
+    UserProvider userProv,
+    StaffProvider staffProv,
+  ) {
+    final status = order['status'];
+    final isDelivery = userProv.isDelivery;
+
+    // 1. DELIVERY ROLE ACTIONS
+    if (isDelivery) {
+      if (order['deliveryId'] == null &&
+          ['Accepted', 'Preparing', 'Ready'].contains(status)) {
+        return Row(
+          children: [
+            Expanded(
+              child: _buildButton(
+                label: 'Agree (Take Delivery)',
+                color: Colors.blue[800]!,
+                onPressed: () async {
+                  final success = await staffProv.agreeDelivery(
+                    order['_id'],
+                    userId: userProv.userId,
+                  );
+                  if (success) _onActionSuccess(context, 'Delivery Accepted');
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildButton(
+                label: 'Reject',
+                color: Colors.red[400]!,
+                onPressed: () =>
+                    _showRejectDeliveryDialog(context, order['_id']),
+              ),
+            ),
+          ],
+        );
+      } else if (order['deliveryId'] != null &&
+          (order['deliveryId'] is Map
+              ? order['deliveryId']['_id'] == userProv.userId
+              : order['deliveryId'] == userProv.userId)) {
+        // Driver assigned to this order
+        if (status == 'Ready') {
+          return _buildButton(
+            label: 'Pick Up Order',
+            color: Colors.blue[800]!,
+            onPressed: () => _updateStatus(context, 'Handed to Delivery'),
+          );
+        } else if (status == 'Handed to Delivery') {
+          return _buildButton(
+            label: 'Mark as Delivered',
+            color: Colors.green[700]!,
+            onPressed: () => _updateStatus(context, 'Delivered'),
+          );
+        }
+      }
+
+      return Center(
+        child: Text(
+          'Waiting for Kitchen/Pickup...',
+          style: GoogleFonts.poppins(
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    // 2. STAFF / ADMIN ROLE ACTIONS
+    if (userProv.isStaff || userProv.isAdmin || userProv.isSuperAdmin) {
+      if (status == 'Pending') {
+        return Row(
+          children: [
+            Expanded(
+              child: _buildButton(
+                label: 'Accept Order',
+                color: Colors.green[600]!,
+                onPressed: () async {
+                  final success = await staffProv.acceptOrder(
+                    order['_id'],
+                    userProv.userId!,
+                    userId: userProv.userId,
+                  );
+                  if (success) _onActionSuccess(context, 'Order Accepted');
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildButton(
+                label: 'Reject Order',
+                color: Colors.red[600]!,
+                onPressed: () => _showRejectDialog(context, order['_id']),
+              ),
+            ),
+          ],
+        );
+      } else if (status == 'Accepted' &&
+          (order['staffId'] == null ||
+              (order['staffId'] is Map &&
+                  order['staffId']['_id'] == userProv.userId) ||
+              order['staffId'] == userProv.userId)) {
+        return _buildButton(
+          label: 'Start Preparing',
+          color: Colors.purple[600]!,
+          onPressed: () => _updateStatus(context, 'Preparing'),
+        );
+      } else if (status == 'Preparing') {
+        return _buildButton(
+          label: 'Mark as Ready',
+          color: Colors.orange[800]!,
+          onPressed: () => _updateStatus(context, 'Ready'),
+        );
+      }
+    }
+
+    return Center(
+      child: Text(
+        'Order is in $status state',
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.bold,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButton({
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+      ),
+      onPressed: onPressed,
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Future<void> _updateStatus(BuildContext context, String status) async {
+    final success = await context.read<StaffProvider>().updateStatus(
+      order['_id'],
+      status,
+      userId: context.read<UserProvider>().userId,
+    );
+    if (success) _onActionSuccess(context, 'Status updated to $status');
+  }
+
+  void _onActionSuccess(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green[800],
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Navigator.pop(context);
   }
 
   void _showRejectDialog(BuildContext context, String orderId) {
     final TextEditingController reasonController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject Order'),
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Reject Order', style: GoogleFonts.poppins()),
         content: TextField(
           controller: reasonController,
-          decoration: const InputDecoration(
-            hintText: 'Enter reason for rejection',
-          ),
+          decoration: const InputDecoration(hintText: 'Reason for rejection'),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               if (reasonController.text.isEmpty) return;
-              final success = await Provider.of<StaffProvider>(
-                context,
-                listen: false,
-              ).rejectOrder(orderId, reasonController.text);
+              final success = await context.read<StaffProvider>().rejectOrder(
+                orderId,
+                reasonController.text,
+                userId: context.read<UserProvider>().userId,
+              );
               if (success) {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close details
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Order Rejected')));
+                Navigator.pop(dialogCtx);
+                _onActionSuccess(context, 'Order Rejected');
               }
             },
-            child: const Text('Reject'),
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRejectDeliveryDialog(BuildContext context, String orderId) {
+    final TextEditingController reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Reject Delivery', style: GoogleFonts.poppins()),
+        content: TextField(
+          controller: reasonController,
+          decoration: const InputDecoration(hintText: 'Why reject this?'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              if (reasonController.text.isEmpty) return;
+              final success = await context
+                  .read<StaffProvider>()
+                  .rejectDelivery(
+                    orderId,
+                    reasonController.text,
+                    userId: context.read<UserProvider>().userId,
+                  );
+              if (success) {
+                Navigator.pop(dialogCtx);
+                _onActionSuccess(context, 'Delivery Rejected');
+              }
+            },
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

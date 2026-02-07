@@ -6,7 +6,9 @@ class FoodModel {
   final String image;
   final String category;
   final double rating;
+  final int quantity;
   final bool isPopular;
+  final String? restaurantId;
 
   FoodModel({
     required this.id,
@@ -16,7 +18,9 @@ class FoodModel {
     required this.image,
     required this.category,
     this.rating = 0.0,
+    this.quantity = 0,
     this.isPopular = false,
+    this.restaurantId,
   });
 
   factory FoodModel.fromJson(Map<String, dynamic> json) {
@@ -28,7 +32,9 @@ class FoodModel {
       image: json['image'] ?? '',
       category: json['category'] ?? '',
       rating: (json['rating'] ?? 0).toDouble(),
+      quantity: json['quantity'] ?? 0,
       isPopular: json['isPopular'] ?? false,
+      restaurantId: json['restaurantId'],
     );
   }
 }
