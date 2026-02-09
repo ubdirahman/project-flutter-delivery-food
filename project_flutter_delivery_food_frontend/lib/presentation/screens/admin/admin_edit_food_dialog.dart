@@ -25,6 +25,7 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
   late TextEditingController _priceController;
   late TextEditingController _quantityController;
   late TextEditingController _imageController;
+  late TextEditingController _sizeController;
   String _category = 'Fast Food';
   bool _isPopular = false;
   bool _isLoading = false;
@@ -54,6 +55,7 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
       text: widget.food?.quantity.toString() ?? '0',
     );
     _imageController = TextEditingController(text: widget.food?.image ?? '');
+    _sizeController = TextEditingController(text: widget.food?.size ?? '');
     _category = widget.food?.category ?? 'Fast Food';
     if (!_categories.contains(_category)) _categories.add(_category);
     _isPopular = widget.food?.isPopular ?? false;
@@ -66,6 +68,7 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
     _priceController.dispose();
     _quantityController.dispose();
     _imageController.dispose();
+    _sizeController.dispose();
     super.dispose();
   }
 
@@ -186,6 +189,11 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
                     ),
                   ),
                 const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _sizeController,
+                  label: 'Size (optional)',
+                ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _category,
                   decoration: InputDecoration(
@@ -206,7 +214,7 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
                 const SizedBox(height: 12),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Popular Item', style: GoogleFonts.poppins()),
+                  title: Text('Food Item', style: GoogleFonts.poppins()),
                   activeColor: AppColors.primary,
                   value: _isPopular,
                   onChanged: (val) => setState(() => _isPopular = val),
@@ -354,6 +362,7 @@ class _AdminEditFoodDialogState extends State<AdminEditFoodDialog> {
       'category': _category,
       'isPopular': _isPopular,
       'restaurantId': context.read<UserProvider>().restaurantId,
+      'size': _sizeController.text,
     };
 
     bool success;

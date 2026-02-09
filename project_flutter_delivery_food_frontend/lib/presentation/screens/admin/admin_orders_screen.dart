@@ -14,6 +14,8 @@ class AdminOrdersScreen extends StatefulWidget {
 }
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
+  String? _ratingFilter; // null = all, '5', '4', '3', '2', '1', 'unrated'
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +43,101 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          // Rating Filter Dropdown
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: PopupMenuButton<String>(
+              icon: Icon(
+                Icons.filter_list,
+                color: _ratingFilter != null ? AppColors.primary : Colors.black,
+              ),
+              tooltip: 'Filter by Rating',
+              onSelected: (value) {
+                setState(() {
+                  _ratingFilter = value == 'all' ? null : value;
+                });
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'all',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.clear_all,
+                        size: 18,
+                        color: _ratingFilter == null
+                            ? AppColors.primary
+                            : Colors.grey,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'All Orders',
+                        style: GoogleFonts.poppins(
+                          fontWeight: _ratingFilter == null
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                ...List.generate(5, (index) {
+                  final rating = (5 - index).toString();
+                  return PopupMenuItem(
+                    value: rating,
+                    child: Row(
+                      children: [
+                        ...List.generate(
+                          5 - index,
+                          (_) => const Icon(
+                            Icons.star,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$rating Stars',
+                          style: GoogleFonts.poppins(
+                            fontWeight: _ratingFilter == rating
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'unrated',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.star_border,
+                        size: 18,
+                        color: _ratingFilter == 'unrated'
+                            ? AppColors.primary
+                            : Colors.grey,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Not Rated',
+                        style: GoogleFonts.poppins(
+                          fontWeight: _ratingFilter == 'unrated'
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
       body: Consumer<AdminProvider>(
         builder: (context, adminProvider, child) {
@@ -48,13 +145,50 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final orders = adminProvider.allOrders;
+          var orders = adminProvider.allOrders;
+
+          // Apply rating filter
+          if (_ratingFilter != null) {
+            orders = orders.where((order) {
+              if (_ratingFilter == 'unrated') {
+                return order['deliveryRating'] == null;
+              } else {
+                return order['deliveryRating']?.toString() == _ratingFilter;
+              }
+            }).toList();
+          }
 
           if (orders.isEmpty) {
             return Center(
-              child: Text(
-                'No orders found',
-                style: GoogleFonts.poppins(color: Colors.grey),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _ratingFilter != null
+                        ? Icons.filter_list_off
+                        : Icons.inbox_outlined,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _ratingFilter != null
+                        ? 'No orders match this filter'
+                        : 'No orders found',
+                    style: GoogleFonts.poppins(color: Colors.grey),
+                  ),
+                  if (_ratingFilter != null) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _ratingFilter = null;
+                        });
+                      },
+                      child: const Text('Clear Filter'),
+                    ),
+                  ],
+                ],
               ),
             );
           }
@@ -107,27 +241,73 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Order #${order['_id'].toString().substring(order['_id'].toString().length - 6)}',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '${order['userId']?['username'] ?? 'Unknown User'}',
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Order #${order['_id'].toString().substring(order['_id'].toString().length - 6)}',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${order['userId']?['username'] ?? 'Unknown User'}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  // Show rating in collapsed view if available
+                  if (order['deliveryRating'] != null && status == 'Delivered')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  size: 12,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${order['deliveryRating']}/5',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
             _buildStatusBadge(status),
           ],
         ),
-        subtitle: Text(
-          'Total: \$${order['totalAmount']}',
-          style: GoogleFonts.poppins(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w600,
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'Total: \$${order['totalAmount']}',
+            style: GoogleFonts.poppins(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         children: [
@@ -158,6 +338,97 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   'Address: ${order['address']}',
                   style: GoogleFonts.poppins(fontSize: 12),
                 ),
+                if (order['deliveryRating'] != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.delivery_dining,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Delivery Rating',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            ...List.generate(5, (index) {
+                              return Icon(
+                                index < (order['deliveryRating'] ?? 0)
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                size: 20,
+                                color: AppColors.primary,
+                              );
+                            }),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${order['deliveryRating']}/5',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (order['deliveryReview'] != null &&
+                            order['deliveryReview'].toString().isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.comment,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    '"${order['deliveryReview']}"',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,

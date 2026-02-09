@@ -211,4 +211,23 @@ class ApiService {
       return false;
     }
   }
+
+  Future<bool> rateDelivery(
+    String orderId,
+    int rating,
+    String review, {
+    String? userId,
+  }) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/orders/$orderId/rate'),
+        headers: _headers(userId),
+        body: json.encode({'deliveryRating': rating, 'deliveryReview': review}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Rate delivery error: $e');
+      return false;
+    }
+  }
 }

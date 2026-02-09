@@ -73,6 +73,20 @@ router.get('/stats', protect, authorize('admin', 'superadmin', 'staff', 'deliver
             { $limit: 5 }
         ]);
 
+        // Calculate Average Delivery Rating
+        const deliveryRatingResult = await Order.aggregate([
+            { $match: { ...matchQuery, status: 'Delivered', deliveryRating: { $exists: true, $ne: null } } },
+            { 
+                $group: { 
+                    _id: null, 
+                    avgRating: { $avg: "$deliveryRating" },
+                    totalRatings: { $sum: 1 }
+                } 
+            }
+        ]);
+        const avgDeliveryRating = deliveryRatingResult.length > 0 ? deliveryRatingResult[0].avgRating.toFixed(1) : null;
+        const totalDeliveryRatings = deliveryRatingResult.length > 0 ? deliveryRatingResult[0].totalRatings : 0;
+
         res.json({
             totalOrders,
             totalCustomers,
@@ -86,6 +100,8 @@ router.get('/stats', protect, authorize('admin', 'superadmin', 'staff', 'deliver
             totalItemsSold,
             totalDelivery: await Order.countDocuments({ ...matchQuery, status: 'Delivered' }),
             avgOrderValue,
+            avgDeliveryRating,
+            totalDeliveryRatings,
             topSellingItems
         });
     } catch (err) {

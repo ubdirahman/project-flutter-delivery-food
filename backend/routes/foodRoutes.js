@@ -94,7 +94,8 @@ router.post('/', protect, authorize('admin', 'staff', 'superadmin'), async (req,
         category: req.body.category,
         quantity: req.body.quantity || 0,
         restaurantId: restaurantId,
-        isPopular: req.body.isPopular || false
+        isPopular: req.body.isPopular || false,
+        size: req.body.size || ''
     });
 
     try {
@@ -128,6 +129,7 @@ router.put('/:id', protect, authorize('admin', 'superadmin'), async (req, res) =
             food.category = req.body.category || food.category;
             food.quantity = req.body.quantity !== undefined ? req.body.quantity : food.quantity;
             food.isPopular = req.body.isPopular !== undefined ? req.body.isPopular : food.isPopular;
+            food.size = req.body.size !== undefined ? req.body.size : food.size;
             if (req.body.restaurantId) {
                 food.restaurantId = req.body.restaurantId;
             }

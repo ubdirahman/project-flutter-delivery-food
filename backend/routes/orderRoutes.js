@@ -119,6 +119,45 @@ router.patch('/:orderId', protect, authorize('admin', 'superadmin', 'staff', 'de
     }
 });
 
+// Rate delivery
+router.patch('/:orderId/rate', protect, async (req, res) => {
+    try {
+        const { deliveryRating, deliveryReview } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.orderId)) {
+            return res.status(400).json({ success: false, message: 'Invalid Order ID format' });
+        }
+
+        if (!deliveryRating || deliveryRating < 1 || deliveryRating > 5) {
+            return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+        }
+
+        let order = await Order.findById(req.params.orderId);
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Only allow the user who placed the order to rate it
+        if (order.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Not authorized to rate this order' });
+        }
+
+        // Allow rating for Ready, Handed to Delivery, or Delivered orders
+        const allowedStatuses = ['Ready', 'Handed to Delivery', 'Delivered'];
+        if (!allowedStatuses.includes(order.status)) {
+            return res.status(400).json({ success: false, message: 'Can only rate orders that are ready, handed to delivery, or delivered' });
+        }
+
+        order.deliveryRating = deliveryRating;
+        order.deliveryReview = deliveryReview || '';
+        await order.save();
+
+        res.json({ success: true, order });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Delete order
 router.delete('/:orderId', protect, authorize('admin', 'superadmin'), async (req, res) => {
     try {

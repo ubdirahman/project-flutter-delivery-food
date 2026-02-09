@@ -128,7 +128,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
       itemCount: ordersList.length,
       itemBuilder: (context, index) {
         final order = ordersList[index];
-        final items = (order['items'] as List).map((i) => i['name']).join(', ');
         final status = order['status'] ?? 'Pending';
 
         return Container(
@@ -193,16 +192,83 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      items,
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    const SizedBox(height: 12),
+                    // Detailed items list
+                    ...(order['items'] as List).map((item) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item['name'] ?? '',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '\$${item['price']} × ${item['quantity']}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: AppColors.primaryRed,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (item['description'] != null &&
+                                item['description'].toString().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  item['description'],
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            if (item['size'] != null &&
+                                item['size'].toString().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.straighten,
+                                      size: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Size: ${item['size']}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                     if (status == 'Rejected' &&
                         order['rejectionReason'] != null &&
                         order['rejectionReason'].toString().isNotEmpty)
@@ -254,7 +320,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (![
+                        if (!![
                           'Delivered',
                           'Rejected',
                           'Cancelled',
@@ -272,19 +338,34 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               foregroundColor: Colors.orange[800],
                             ),
                           ),
-                        if (status == 'Delivered')
+                        if (['Ready', 'Handed to Delivery'].contains(status) &&
+                            order['deliveryRating'] == null)
                           TextButton.icon(
-                            onPressed: () => _showMessageDialog(
-                              order,
-                              'feedback',
-                              'Give Feedback',
-                              'How was the food?',
-                            ),
-                            icon: const Icon(Icons.rate_review, size: 16),
-                            label: const Text('Give Feedback'),
+                            onPressed: () => _showRatingDialog(order),
+                            icon: const Icon(Icons.star, size: 16),
+                            label: const Text('Qiimee Delivery-ga'),
                             style: TextButton.styleFrom(
                               foregroundColor: AppColors.primaryRed,
                             ),
+                          ),
+                        if ([
+                              'Ready',
+                              'Handed to Delivery',
+                              'Delivered',
+                            ].contains(status) &&
+                            order['deliveryRating'] != null)
+                          Row(
+                            children: [
+                              ...List.generate(5, (index) {
+                                return Icon(
+                                  index < (order['deliveryRating'] ?? 0)
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                );
+                              }),
+                            ],
                           ),
                       ],
                     ),
@@ -367,6 +448,95 @@ class _OrdersScreenState extends State<OrdersScreen> {
             child: const Text('Send'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showRatingDialog(Map<String, dynamic> order) {
+    int rating = 5;
+    final reviewController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(
+            'Qiimee Delivery-ga',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Sidee ahayd waayo-aragnimadaada delivery-ga?',
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    icon: Icon(
+                      index < rating ? Icons.star : Icons.star_border,
+                      size: 32,
+                      color: AppColors.primary,
+                    ),
+                    onPressed: () => setState(() => rating = index + 1),
+                  );
+                }),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reviewController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Qor faalladaada (ikhtiyaari)...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final userProvider = context.read<UserProvider>();
+                final success = await _apiService.rateDelivery(
+                  order['_id'],
+                  rating,
+                  reviewController.text,
+                  userId: userProvider.userId,
+                );
+                if (mounted) {
+                  Navigator.pop(context);
+                  if (success) {
+                    _fetchOrders();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Thank you for your rating!'),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Qiimeynta waa lagu guuldaraystay'),
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryRed,
+              ),
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
       ),
     );
   }

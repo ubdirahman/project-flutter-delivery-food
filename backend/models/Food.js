@@ -9,7 +9,8 @@ const foodSchema = new mongoose.Schema({
     restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: [true, 'Restaurant ID is required'] },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     quantity: { type: Number, default: 0, min: [0, 'Quantity cannot be negative'] },
-    isPopular: { type: Boolean, default: false }
+    isPopular: { type: Boolean, default: false },
+    size: { type: String, trim: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Food', foodSchema);

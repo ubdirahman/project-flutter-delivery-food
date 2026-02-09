@@ -198,6 +198,18 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (food.size != null && food.size!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Size: ${food.size}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 4),
                 Row(
                   children: [

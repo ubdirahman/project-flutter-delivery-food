@@ -9,6 +9,7 @@ class FoodModel {
   final int quantity;
   final bool isPopular;
   final String? restaurantId;
+  final String? size;
 
   FoodModel({
     required this.id,
@@ -21,6 +22,7 @@ class FoodModel {
     this.quantity = 0,
     this.isPopular = false,
     this.restaurantId,
+    this.size,
   });
 
   factory FoodModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class FoodModel {
       quantity: json['quantity'] ?? 0,
       isPopular: json['isPopular'] ?? false,
       restaurantId: json['restaurantId'],
+      size: json['size'],
     );
   }
 }

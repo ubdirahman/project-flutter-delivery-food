@@ -303,6 +303,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Icons.people_outline,
           Colors.orange,
         ),
+        // Delivery Rating Card
+        if (stats['avgDeliveryRating'] != null)
+          _buildStatCard(
+            'Delivery Rating',
+            '${stats['avgDeliveryRating']} ⭐',
+            Icons.delivery_dining,
+            AppColors.primary,
+            subtitle: '${stats['totalDeliveryRatings']} ratings',
+          ),
       ],
     );
   }
